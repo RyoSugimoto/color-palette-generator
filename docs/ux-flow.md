@@ -33,8 +33,14 @@ flowchart TD
   HexOutput --> JsonPath{JSON output path?}
   JsonPath -->|Blank| PrintJson[Print JSON]
   JsonPath -->|Provided| SaveJson[Save JSON file]
-  PrintJson --> End[Finish]
-  SaveJson --> End
+  PrintJson --> CssOutput{CSS output?}
+  SaveJson --> CssOutput
+  CssOutput -->|Skip, default| End[Finish]
+  CssOutput -->|Print| PrintCss[Print CSS]
+  CssOutput -->|Save| CssPath[Require CSS output path]
+  PrintCss --> End
+  CssPath --> SaveCss[Save CSS file]
+  SaveCss --> End
 ```
 
 ## Selection behavior
@@ -60,7 +66,7 @@ After any revision, the initial palette is regenerated and previewed again.
 
 The selected color step count applies to every hue in the harmony. For example, analogous harmony has three hues, so 5 steps produce 15 color swatches. Neutral steps always describe the total number of neutral swatches.
 
-`src/cli/output.ts` prints the final HEX lists with the same TTY True Color swatches used by the initial preview. It then either prints formatted JSON or writes it to the path entered by the user. Errors propagate to the CLI entry point, which prints a failure message and sets a non-zero exit code.
+`src/cli/output.ts` prints the final HEX lists with the same TTY True Color swatches used by the initial preview. It then either prints formatted JSON or writes it to the path entered by the user. After JSON, CSS custom property output can be skipped (the default), printed, or saved to a required path. CSS shade labels always run from the lightest `100` to the darkest `900`, and each harmony hue receives a numbered color group. Errors propagate to the CLI entry point, which prints a failure message and sets a non-zero exit code.
 
 ## Module responsibilities
 
@@ -69,7 +75,7 @@ flowchart LR
   Index[index.ts<br/>Flow control] --> Prompt[prompt.ts<br/>Input and selection]
   Index --> Generate[core/generate.ts<br/>Palette generation]
   Index --> Preview[preview.ts<br/>Terminal preview]
-  Index --> Output[output.ts<br/>HEX and JSON output]
+  Index --> Output[output.ts<br/>HEX, JSON, and CSS output]
   Prompt --> Color[core/color.ts<br/>HEX normalization]
   Generate --> Color
   Generate --> Constants[core/constants.ts<br/>Fixed rules and defaults]

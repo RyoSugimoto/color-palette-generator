@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { select, type PromptInterface } from "../../src/cli/prompt.js";
+import { promptCssOutput, select, type PromptInterface } from "../../src/cli/prompt.js";
 
 const options = [
   { label: "First", value: "first" },
@@ -28,5 +28,29 @@ describe("CLI selection", () => {
     await expect(select(prompt, "Choose:", options, "first")).resolves.toBe("second");
     expect(choose).toHaveBeenCalledWith("Choose:", options, "first");
     expect(prompt.question).not.toHaveBeenCalled();
+  });
+});
+
+describe("CSS output prompt", () => {
+  it.each([
+    ["skip", { mode: "skip" }],
+    ["print", { mode: "print" }],
+  ] as const)("returns the %s choice", async (mode, expected) => {
+    const prompt: PromptInterface = {
+      question: vi.fn(),
+      choose: vi.fn().mockResolvedValue(mode),
+      close: vi.fn(),
+    };
+    await expect(promptCssOutput(prompt)).resolves.toEqual(expected);
+  });
+
+  it("requires a non-empty path when saving", async () => {
+    const prompt: PromptInterface = {
+      question: vi.fn().mockResolvedValueOnce("  ").mockResolvedValueOnce(" palette.css "),
+      choose: vi.fn().mockResolvedValue("save"),
+      close: vi.fn(),
+    };
+    await expect(promptCssOutput(prompt)).resolves.toEqual({ mode: "save", path: "palette.css" });
+    expect(prompt.question).toHaveBeenCalledTimes(2);
   });
 });

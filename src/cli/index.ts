@@ -3,10 +3,11 @@ import { env, stdout } from "node:process";
 import { DEFAULT_COLOR_STEPS, DEFAULT_NEUTRAL_STEPS } from "../core/constants.js";
 import { generatePalette } from "../core/generate.js";
 import type { HarmonyMode, NeutralMode, PaletteConfig } from "../core/types.js";
-import { formatHexOutput, writeJsonOutput } from "./output.js";
+import { formatHexOutput, writeCssOutput, writeJsonOutput } from "./output.js";
 import {
   createPromptInterface,
   promptBaseColor,
+  promptCssOutput,
   promptHarmony,
   promptNeutralMode,
   promptOutputPath,
@@ -49,6 +50,9 @@ async function run(): Promise<void> {
 
     console.log(`\n${formatHexOutput(result, useColor)}`);
     await writeJsonOutput(result, await promptOutputPath(rl));
+    const cssOutput = await promptCssOutput(rl);
+    if (cssOutput.mode === "print") await writeCssOutput(result);
+    if (cssOutput.mode === "save") await writeCssOutput(result, cssOutput.path);
   } finally {
     rl.close();
   }

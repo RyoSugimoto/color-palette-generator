@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { generatePalette } from "../../src/core/generate.js";
-import { formatHexOutput, formatJsonOutput } from "../../src/cli/output.js";
+import { formatCssOutput, formatHexOutput, formatJsonOutput } from "../../src/cli/output.js";
 import { formatPreview } from "../../src/cli/preview.js";
 
 const result = generatePalette({
@@ -34,5 +34,38 @@ describe("CLI formatting", () => {
 
   it("formats parseable JSON", () => {
     expect(JSON.parse(formatJsonOutput(result))).toEqual(result);
+  });
+
+  it.each([
+    [3, [100, 500, 900]],
+    [5, [100, 300, 500, 700, 900]],
+    [7, [100, 200, 300, 500, 700, 800, 900]],
+    [9, [100, 200, 300, 400, 500, 600, 700, 800, 900]],
+  ] as const)("uses CSS lightness labels for %i steps", (steps, labels) => {
+    const palette = generatePalette({ ...result.config, harmony: "monochrome", colorSteps: steps, neutralSteps: steps });
+    const css = formatCssOutput(palette);
+    expect(labels.map((label) => css.includes(`--palette-color-1-${label}:`))).toEqual(labels.map(() => true));
+    expect(labels.map((label) => css.includes(`--palette-neutral-${label}:`))).toEqual(labels.map(() => true));
+  });
+
+  it("maps dark-first colors and light-first neutrals to light-to-dark CSS labels", () => {
+    const css = formatCssOutput(result);
+    expect(css).toContain(`--palette-color-1-100: ${result.colors[2]};`);
+    expect(css).toContain(`--palette-color-1-900: ${result.colors[0]};`);
+    expect(css).toContain(`--palette-neutral-100: ${result.neutrals[0]};`);
+    expect(css).toContain(`--palette-neutral-900: ${result.neutrals[2]};`);
+  });
+
+  it("keeps harmony hues in separate CSS groups", () => {
+    const css = formatCssOutput(result);
+    expect(css).toContain(`--palette-color-1-100: ${result.colors[2]};`);
+    expect(css).toContain(`--palette-color-2-100: ${result.colors[5]};`);
+    expect(css).toContain(`--palette-color-3-100: ${result.colors[8]};`);
+  });
+
+  it("formats a complete CSS root block with a trailing newline", () => {
+    const css = formatCssOutput(result);
+    expect(css).toMatch(/^:root \{\n/);
+    expect(css).toMatch(/;\n\}\n$/);
   });
 });

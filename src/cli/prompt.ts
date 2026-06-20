@@ -19,6 +19,10 @@ import type {
 
 export type BaseColorMethod = "hex" | "family" | "mood" | "use-case";
 export type ReviewAction = "continue" | "base" | "harmony" | "neutral";
+export type CssOutputChoice =
+  | { readonly mode: "skip" }
+  | { readonly mode: "print" }
+  | { readonly mode: "save"; readonly path: string };
 
 export interface PromptInterface {
   question(prompt: string): Promise<string>;
@@ -109,6 +113,22 @@ export function promptStepCount(rl: PromptInterface, label: string, defaultValue
 export async function promptOutputPath(rl: PromptInterface): Promise<string | undefined> {
   const answer = (await rl.question("JSON output path (leave blank to print to the terminal): ")).trim();
   return answer || undefined;
+}
+
+export async function promptCssOutput(rl: PromptInterface): Promise<CssOutputChoice> {
+  const mode = await select(rl, "Choose CSS output:", [
+    { label: "Skip CSS output", value: "skip" },
+    { label: "Print CSS", value: "print" },
+    { label: "Save CSS to a file", value: "save" },
+  ] as const, "skip");
+
+  if (mode !== "save") return { mode };
+
+  while (true) {
+    const path = (await rl.question("CSS output path: ")).trim();
+    if (path) return { mode, path };
+    console.log("Enter a path for the CSS output file.");
+  }
 }
 
 async function promptHex(rl: PromptInterface): Promise<string> {

@@ -14,7 +14,7 @@ pnpm install
 pnpm start
 ```
 
-The CLI guides you through choosing a base color, color harmony, neutral style, and number of lightness steps. At the end, you receive a HEX list and JSON that you can use in a design tool or project.
+The CLI guides you through choosing a base color, color harmony, neutral style, and number of lightness steps. At the end, you receive a HEX list and JSON, with an optional CSS custom property output.
 
 Use the Up and Down arrow keys to move through choices and press Enter to select one. For step-count prompts, pressing Enter selects the displayed default.
 
@@ -65,3 +65,17 @@ Colors and neutrals both default to 5 steps. Wider harmonies generate a full set
 The preview is a chance to check the overall direction, not a final commitment. If the palette feels too quiet, too colorful, or disconnected from your project, go back and try a different base color, harmony, or neutral style.
 
 The final HEX list is convenient for quickly trying colors in a design tool or stylesheet. The JSON output is useful when you want to bring the complete palette into code, a token-building script, or another tool. Enter a file path to save it, or leave the path blank to print it in the terminal.
+
+After JSON output, CSS output can be skipped (the default), printed, or saved to a file. The CSS uses light-to-dark labels from `100` to `900`; palettes with multiple harmony hues use numbered groups such as `color-1` and `color-2`.
+
+```css
+:root {
+  --palette-color-1-100: #CEDFFE;
+  --palette-color-1-500: #427FFF;
+  --palette-color-1-900: #002C92;
+
+  --palette-neutral-100: #F6F9FE;
+  --palette-neutral-500: #747B87;
+  --palette-neutral-900: #0D121B;
+}
+```
