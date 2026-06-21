@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/RyoSugimoto/quick-palette/compare/quick-palette-v0.2.0...quick-palette-v0.2.1) (2026-06-21)
+
+
+### Bug Fixes
+
+* **cli:** allow exporting after entering explore mode ([a9e796a](https://github.com/RyoSugimoto/quick-palette/commit/a9e796ad93f05c5796903cf625a1a495673a1ee9))
+
 ## [0.2.0](https://github.com/RyoSugimoto/color-palette-generator/compare/quick-palette-v0.1.0...quick-palette-v0.2.0) (2026-06-21)
 
 
