@@ -1,78 +1,72 @@
 #!/usr/bin/env node
-import { env, stdout } from "node:process";
-import { DEFAULT_COLOR_STEPS, DEFAULT_NEUTRAL_STEPS } from "../core/constants.js";
-import { generatePalette } from "../core/generate.js";
-import type { HarmonyMode, HarmonyTuning, NeutralMode, PaletteConfig } from "../core/types.js";
-import { formatHexOutput, writeCssOutput, writeJsonOutput } from "./output.js";
+import { argv, env, stdout } from "node:process";
+import { CliArgumentError, HELP_TEXT, parseCliArgs } from "./args.js";
+import { configurePalette } from "./configure.js";
+import { explorePalettes } from "./explore.js";
+import { runGenerateCommand } from "./generate-command.js";
+import { assertSupportedNodeVersion } from "./node-version.js";
 import {
   createPromptInterface,
-  promptBaseColor,
-  promptCssOutput,
-  promptHarmony,
-  promptHarmonyTuning,
-  promptNeutralMode,
-  promptOutputPath,
-  promptReviewAction,
-  promptStepCount,
+  PromptCancelledError,
+  promptStartupMode,
 } from "./prompt.js";
-import { formatPreview } from "./preview.js";
 
-async function run(): Promise<void> {
+async function run(args: readonly string[]): Promise<void> {
+  assertSupportedNodeVersion();
+  const command = parseCliArgs(args);
+  if (command.name === "help") {
+    console.log(HELP_TEXT);
+    return;
+  }
+  if (command.name === "generate") {
+    await runGenerateCommand(command);
+    return;
+  }
+
   const rl = createPromptInterface();
   const useColor = Boolean(stdout.isTTY && env.NO_COLOR === undefined);
-  console.log("Color Palette Generator");
+  console.log("Quick Palette");
 
   try {
-    let baseColor = await promptBaseColor(rl);
-    let harmony: HarmonyMode = await promptHarmony(rl);
-    let harmonyTuning: HarmonyTuning = await promptHarmonyTuning(rl);
-    let neutralMode: NeutralMode = await promptNeutralMode(rl);
-
-    while (true) {
-      const preview = generatePalette({
-        baseColor,
-        harmony,
-        harmonyTuning,
-        neutralMode,
-        colorSteps: DEFAULT_COLOR_STEPS,
-        neutralSteps: DEFAULT_NEUTRAL_STEPS,
+    if (command.name === "explore") {
+      const outcome = await explorePalettes(rl, useColor, {
+        ...(command.seed === undefined ? {} : { initialSeed: command.seed }),
       });
-      console.log(formatPreview(preview, useColor));
-
-      const action = await promptReviewAction(rl);
-      if (action === "continue") break;
-      if (action === "base") baseColor = await promptBaseColor(rl);
-      if (action === "harmony") {
-        harmony = await promptHarmony(rl);
-        harmonyTuning = await promptHarmonyTuning(rl);
+      if (outcome.action === "edit") {
+        await configurePalette(rl, useColor, outcome.config, { editImmediately: true });
       }
-      if (action === "neutral") neutralMode = await promptNeutralMode(rl);
+      return;
+    }
+    if (command.name === "configure") {
+      await configurePalette(rl, useColor);
+      return;
     }
 
-    const colorSteps = await promptStepCount(rl, "Choose the number of color steps", DEFAULT_COLOR_STEPS);
-    const neutralSteps = await promptStepCount(rl, "Choose the number of neutral steps", DEFAULT_NEUTRAL_STEPS);
-    const config: PaletteConfig = {
-      baseColor,
-      harmony,
-      harmonyTuning,
-      neutralMode,
-      colorSteps,
-      neutralSteps,
-    };
-    const result = generatePalette(config);
-
-    console.log(`\n${formatHexOutput(result, useColor)}`);
-    await writeJsonOutput(result, await promptOutputPath(rl));
-    const cssOutput = await promptCssOutput(rl);
-    if (cssOutput.mode === "print") await writeCssOutput(result);
-    if (cssOutput.mode === "save") await writeCssOutput(result, cssOutput.path);
+    const startupMode = await promptStartupMode(rl);
+    if (startupMode === "explore") {
+      const outcome = await explorePalettes(rl, useColor);
+      if (outcome.action !== "edit") return;
+      await configurePalette(rl, useColor, outcome.config, { editImmediately: true });
+      return;
+    }
+    await configurePalette(rl, useColor);
   } finally {
     rl.close();
   }
 }
 
-run().catch((error: unknown) => {
+run(argv.slice(2)).catch((error: unknown) => {
+  if (error instanceof PromptCancelledError) {
+    console.error("Cancelled.");
+    process.exitCode = 130;
+    return;
+  }
+  if (error instanceof CliArgumentError) {
+    console.error(`Error: ${error.message}\nRun quick-palette --help for usage.`);
+    process.exitCode = 1;
+    return;
+  }
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`Failed to generate the palette: ${message}`);
+  console.error(`Could not complete the command: ${message}`);
   process.exitCode = 1;
 });

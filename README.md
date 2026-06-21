@@ -1,92 +1,132 @@
-# Color Palette Generator
+# Quick Palette
 
-Create a color palette by answering a few simple questions. Start from a color you already love, a mood, or the kind of project you are making, then preview and adjust the result before saving it.
+Explore reproducible OKLCH-based color palettes from the command line. The default flow shows a usable five-step palette after one selection, then lets you accept it or move to another candidate with one key.
 
-## Requirements
+## Quick start
+
+```bash
+pnpm dlx quick-palette
+```
+
+Or use npm:
+
+```bash
+npx quick-palette
+```
+
+Press Enter to choose **Explore random palettes**. In the exploration view:
+
+```text
+Enter: accept   Space: next   e: edit   q: quit
+```
+
+Every candidate displays a seed. Accepting prints concise HEX output without asking about step counts or export formats.
+
+## Local development
+
+Requirements:
 
 - Node.js 22 or later
 - pnpm 11 or later
-
-## Usage
 
 ```bash
 pnpm install
 pnpm start
 ```
 
-The CLI guides you through choosing a base color, color harmony, neutral style, and number of lightness steps. At the end, you receive a HEX list and JSON, with an optional CSS custom property output.
+TTY sessions use arrow-key menus. Redirected or piped input uses numbered choices. Set `NO_COLOR` to disable terminal color swatches.
 
-Use the Up and Down arrow keys to move through choices and press Enter to select one. For step-count prompts, pressing Enter selects the displayed default.
+## Reproduce a palette
 
-## Choosing your palette
+Use the seed shown below an exploration preview:
+
+```bash
+pnpm dlx quick-palette generate --seed 8f3a21c4
+```
+
+The same seed produces the same configuration and palette within the same Quick Palette version. Save the generated JSON output when exact colors must be retained across versions. JSON and CSS output are available without interactive prompts:
+
+```bash
+pnpm dlx quick-palette generate --seed 8f3a21c4 --format json
+pnpm dlx quick-palette generate --seed 8f3a21c4 --format css --output palette.css
+```
+
+Non-interactive output goes only to stdout unless `--output` is supplied. Errors go to stderr and set a non-zero exit status.
+
+## Generate an exact configuration
+
+```bash
+pnpm dlx quick-palette generate \
+  --base '#2563EB' \
+  --harmony analogous \
+  --tuning ui \
+  --neutral tinted \
+  --color-steps 5 \
+  --neutral-steps 5 \
+  --format json
+```
+
+Supported values:
+
+- Harmony: `monochrome`, `analogous`, `complementary`, `triadic`
+- Tuning: `mechanical`, `ui`, `branding`, `data-visualization`
+- Neutrals: `neutral`, `tinted`
+- Step counts: `3`, `5`, `7`, `9`
+- Formats: `hex`, `json`, `css`
+
+Run `pnpm dlx quick-palette --help` for the complete command reference. For repeated use, install it globally with `npm install --global quick-palette` and run `quick-palette` directly.
+
+## Detailed configuration
+
+Choose **Create a custom palette** at startup, or run:
+
+```bash
+pnpm dlx quick-palette configure
+```
+
+The detailed flow selects a base color, harmony, harmony adjustment, and neutral style before showing a preview. Monochrome palettes skip the adjustment question because it would not change their colors. Its final actions are:
+
+- **Finish and print HEX values** prints HEX and exits with the current scales.
+- **Export as JSON or CSS** prints or saves a file, then lets you finish, export another format, or return to the palette.
+- **Change palette settings** changes the base color, harmony, neutral style, or step counts while preserving other values.
+
+Press `e` during exploration to open the field picker directly with the current candidate values preselected.
+
+## Palette choices
 
 ### Base color
 
-Think of the base color as the personality of your palette. It may be a color you already use, or simply a direction you want to explore.
+Enter `#RGB` or `#RRGGBB`, or select a curated color by family, mood, or use case. Random exploration also draws from the deduplicated curated color set.
 
-- **HEX value** is useful when you already have a brand color, a favorite color, or a color picked from a design. Values such as `#2563EB` and `#F80` are accepted.
-- **Color family** is a good place to start when your idea is still broad, such as "something blue" or "a warm orange."
-- **Mood** helps when you know how the result should feel. Try calm for a quiet, approachable look; energetic for something lively; elegant for a more refined tone; or playful for a cheerful impression.
-- **Use case** starts from what you are making. For example, a dashboard benefits from clear, dependable colors, while wellness content often works well with softer, nature-inspired colors.
+### Harmony
 
-There is no wrong starting point. You can preview the result and come back to choose again before creating the final palette.
+- **Monochrome (1 hue + neutrals)** keeps the palette focused.
+- **Analogous (3 neighboring hues + neutrals)** creates cohesive variety.
+- **Complementary (2 opposite hues + neutrals)** creates clear contrast.
+- **Triadic (3 evenly spaced hues + neutrals)** creates colorful balance.
 
-### Color harmony
+### Harmony adjustment
 
-Harmony changes how quiet or varied the palette feels.
+- **Fixed angles** preserves predictable color-theory angles.
+- **UI** favors restrained screen accents.
+- **Branding** favors vivid, separated accents.
+- **Data visualization** prioritizes categorical separation.
 
-- **Monochrome** keeps everything in one color family. It feels consistent and calm, and works well for focused interfaces, landing pages, or a simple brand system.
-- **Analogous** adds neighboring colors for gentle variety. It often feels natural and cohesive, making it useful for gradients, illustrations, and interfaces that need more warmth without strong contrast.
-- **Complementary** pairs the base color with a contrasting color. Choose it when buttons, calls to action, highlights, or important states need to stand out clearly.
-- **Triadic** brings together three distinct color families. It creates a lively, balanced palette suited to playful brands, colorful illustrations, or categories that need to be easy to tell apart.
+Adjustments are deterministic and bounded to 12 degrees from each fixed harmony angle. Monochrome palettes do not ask for an adjustment because they contain no secondary hue.
 
-When in doubt, start with monochrome or analogous. Complementary and triadic palettes offer more contrast and usually benefit from choosing one color as the main color and using the others as accents.
+### Neutrals and steps
 
-### Harmony tuning
+Neutral gray has zero chroma. Base-tinted gray carries a small amount of the base hue into backgrounds, borders, and text colors.
 
-Harmony tuning optionally makes a small, deterministic adjustment to the secondary harmony hues. The base hue and selected harmony stay intact, and every adjustment is limited to 12 degrees from the fixed harmony angle.
+Colors and neutrals default to five lightness steps. Terminal output labels them from `100` to `900` in light-to-dark order, matching CSS output. Wider harmonies display one separately labeled scale per hue. Use **Change palette settings > Step counts** or non-interactive flags when 3, 7, or 9 steps are needed.
 
-- **Mechanical** is the default and preserves the fixed harmony angles exactly. Use it when compatibility or predictable color-theory angles matter most.
-- **UI** favors restrained accents that stay close to the fixed angles while avoiding colors that lose too much intensity on screen.
-- **Branding** favors vivid, clearly separated secondary accents within the same bounded adjustment range.
-- **Data visualization** favors separation between categorical colors. It is not intended for sequential scales and does not replace color-vision testing, labels, shapes, or patterns.
+## Development
 
-Monochrome palettes are unchanged by tuning because they have no secondary hue. Tuning is deterministic and runs locally without AI, randomness, or network access.
-
-### Neutral palette
-
-Neutrals are the supporting colors for backgrounds, text, borders, cards, and disabled states. They give the main colors room to stand out.
-
-- **Neutral gray** has a clean, familiar appearance. It is a dependable choice for dashboards, utilities, editorial layouts, and designs where content should take priority.
-- **Base-tinted gray** gently carries the character of the base color into the neutral shades. It can make backgrounds and interface elements feel softer and more connected to the rest of the palette.
-
-### Lightness steps
-
-Steps are the number of light-to-dark variations available for each color. More steps give you finer control; fewer steps keep the palette compact and easier to manage.
-
-- **3 steps** is enough for a quick concept or a simple light, regular, and dark set.
-- **5 steps** is a flexible default for most small sites, apps, and brand explorations.
-- **7 steps** gives a growing interface more room for hover states, subtle surfaces, and emphasis.
-- **9 steps** suits detailed UI work and design systems that need a broad range from very light backgrounds to strong text and accents.
-
-Colors and neutrals both default to 5 steps. Wider harmonies generate a full set of steps for each of their colors, so an analogous or triadic palette will contain more swatches than a monochrome palette.
-
-### Preview and output
-
-The preview is a chance to check the overall direction, not a final commitment. It shows the selected harmony tuning. If the palette feels too quiet, too colorful, or disconnected from your project, go back and try a different base color, harmony, tuning, or neutral style. Choosing the harmony again also asks for its tuning again.
-
-The final HEX list is convenient for quickly trying colors in a design tool or stylesheet. The JSON output is useful when you want to bring the complete palette into code, a token-building script, or another tool. Enter a file path to save it, or leave the path blank to print it in the terminal.
-
-After JSON output, CSS output can be skipped (the default), printed, or saved to a file. The CSS uses light-to-dark labels from `100` to `900`; palettes with multiple harmony hues use numbered groups such as `color-1` and `color-2`.
-
-```css
-:root {
-  --palette-color-1-100: #CEDFFE;
-  --palette-color-1-500: #427FFF;
-  --palette-color-1-900: #002C92;
-
-  --palette-neutral-100: #F6F9FE;
-  --palette-neutral-500: #747B87;
-  --palette-neutral-900: #0D121B;
-}
+```bash
+pnpm test
+pnpm typecheck
+pnpm build
+pnpm pack --dry-run
 ```
+
+See [CLI UX Flow](docs/ux-flow.md) for interaction states and measured action counts, and [Development Guide](docs/development.md) for module boundaries.

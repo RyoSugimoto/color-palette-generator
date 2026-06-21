@@ -3,12 +3,24 @@ import type { PaletteResult } from "../core/types.js";
 import { formatColorSwatch } from "./terminal-color.js";
 
 export function formatHexOutput(result: PaletteResult, useColor = false): string {
+  const colorLabels = STEP_LABELS[result.config.colorSteps];
+  const neutralLabels = STEP_LABELS[result.config.neutralSteps];
+  const colorGroups: string[] = [];
+
+  for (let start = 0; start < result.colors.length; start += result.config.colorSteps) {
+    const colors = [...result.colors.slice(start, start + result.config.colorSteps)].reverse();
+    colorGroups.push([
+      `Color ${colorGroups.length + 1}`,
+      ...formatScale(colors, colorLabels, useColor),
+    ].join("\n"));
+  }
+
   return [
     "Colors",
-    ...result.colors.map((hex) => formatColorSwatch(hex, useColor)),
+    colorGroups.join("\n\n"),
     "",
     "Neutrals",
-    ...result.neutrals.map((hex) => formatColorSwatch(hex, useColor)),
+    ...formatScale(result.neutrals, neutralLabels, useColor),
   ].join("\n");
 }
 
@@ -22,6 +34,16 @@ const STEP_LABELS = {
   7: [100, 200, 300, 500, 700, 800, 900],
   9: [100, 200, 300, 400, 500, 600, 700, 800, 900],
 } as const;
+
+function formatScale(
+  colors: readonly string[],
+  labels: readonly number[],
+  useColor: boolean,
+): string[] {
+  return colors.map((hex, index) => (
+    `  ${String(labels[index]).padStart(3)}  ${formatColorSwatch(hex, useColor).trimStart()}`
+  ));
+}
 
 export function formatCssOutput(result: PaletteResult): string {
   const colorLabels = STEP_LABELS[result.config.colorSteps];

@@ -1,18 +1,18 @@
-# Development Guide
+# Quick Palette Development Guide
 
 ## Overview
 
-Color Palette Generator is a deterministic TypeScript CLI. Palette calculations use OKLCH internally and produce sRGB HEX values. Generation does not use AI, randomness, external APIs, the current time, or runtime network access.
+Quick Palette is a TypeScript CLI. Palette calculations use OKLCH internally and produce sRGB HEX values. The palette generator is deterministic for a given configuration; exploration uses a seeded, dependency-free PRNG to create reproducible configurations. Runtime generation does not use AI, external APIs, or network access.
 
 The CLI layer owns prompts, terminal previews, and output. The core layer owns color normalization, conversion, gamut mapping, and palette generation.
 
 ```text
 src/
-  core/   Color types, constants, conversion, and generation
-  cli/    Interactive prompts, preview formatting, and output
+  core/   Color rules, seeded random configuration, and generation
+  cli/    Command parsing, application flows, prompts, and output
 test/
-  core/   Generation and color behavior
-  cli/    Prompt delegation and output formatting
+  core/   Generation, harmony, and seeded random behavior
+  cli/    Flow, process, packaging, prompt, and output behavior
 ```
 
 The dependency direction is `cli -> core`. Code in `src/core` must not depend on terminal or filesystem behavior.
@@ -30,9 +30,10 @@ pnpm start
 pnpm test
 pnpm typecheck
 pnpm build
+pnpm pack --dry-run
 ```
 
-`pnpm start` runs the TypeScript entry point with `tsx`. `pnpm build` compiles the executable to `dist/cli/index.js`.
+`pnpm start` runs the TypeScript entry point with `tsx`. Pass CLI arguments directly after the script name, for example `pnpm start generate --seed 8f3a21c4`. `pnpm build` compiles the executable to `dist/cli/index.js`; `prepack` runs this build automatically.
 
 ## Generation rules
 
@@ -45,7 +46,9 @@ pnpm build
 
 ## Interaction behavior
 
-TTY sessions use an arrow-key selector. Up and Down move the active option, Enter confirms it, and Ctrl+C cancels the prompt. Redirected or piped input falls back to numbered choices so the CLI remains scriptable.
+TTY menus use an arrow-key selector. Exploration uses direct Enter, Space, `e`, and `q` actions. Ctrl+C exits with status 130, and raw terminal mode is restored on every exit path. Redirected or piped input falls back to numbered choices. Fully scripted use should use `generate`, which creates no prompt interface and keeps stdout machine-readable.
+
+The npm package and executable are both named `quick-palette`. Before publishing, run the full quality gates and the packed-install smoke test, then inspect `pnpm pack --dry-run` for unexpected files.
 
 See [UX Flow](./ux-flow.md) for the end-to-end interaction and its implementation boundaries. See [Base Color Selection Development](./base-color-selection.md) before changing base-color choices or routing logic.
 

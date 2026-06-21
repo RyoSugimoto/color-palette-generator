@@ -43,6 +43,19 @@ export interface PaletteResult {
   readonly neutrals: readonly string[];
 }
 
+export type RandomSeed = string | number;
+export type RandomPaletteConstraints = Partial<PaletteConfig>;
+
+export interface RandomPaletteConfigOptions {
+  readonly seed?: RandomSeed;
+  readonly constraints?: RandomPaletteConstraints;
+}
+
+export interface RandomPaletteConfigResult {
+  readonly seed: string;
+  readonly config: PaletteConfig;
+}
+
 export interface OklchColor {
   readonly l: number;
   readonly c: number;

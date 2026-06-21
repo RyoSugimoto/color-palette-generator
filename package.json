@@ -1,13 +1,42 @@
 {
-  "name": "color-palette-gen",
+  "name": "quick-palette",
   "version": "0.1.0",
-  "private": true,
+  "description": "Explore and generate reproducible OKLCH-based color palettes from the command line.",
+  "license": "MIT",
+  "author": "Ryo Sugimoto",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/RyoSugimoto/color-palette-generator.git"
+  },
+  "homepage": "https://github.com/RyoSugimoto/color-palette-generator#readme",
+  "bugs": {
+    "url": "https://github.com/RyoSugimoto/color-palette-generator/issues"
+  },
+  "keywords": [
+    "color",
+    "palette",
+    "oklch",
+    "cli"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "packageManager": "pnpm@11.6.0",
   "type": "module",
   "bin": {
-    "color-palette-gen": "./dist/cli/index.js"
+    "quick-palette": "./dist/cli/index.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "prepack": "pnpm build",
     "start": "tsx src/cli/index.ts",
     "test": "vitest run",
     "test:core": "vitest run test/core",

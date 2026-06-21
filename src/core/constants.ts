@@ -1,4 +1,13 @@
-import type { ColorCandidate, ColorFamily, HarmonyMode, Mood, UseCase } from "./types.js";
+import {
+  HARMONY_MODES,
+  HARMONY_TUNINGS,
+  NEUTRAL_MODES,
+  type ColorCandidate,
+  type ColorFamily,
+  type HarmonyMode,
+  type Mood,
+  type UseCase,
+} from "./types.js";
 
 export const COLOR_FAMILY_CANDIDATES: Readonly<Record<ColorFamily, readonly ColorCandidate[]>> = {
   red: [{ name: "Crimson", hex: "#DC2626" }, { name: "Rose", hex: "#E11D48" }],
@@ -36,6 +45,17 @@ export const TINTED_NEUTRAL_MAX_CHROMA = 0.02;
 export const TINTED_NEUTRAL_CHROMA_RATIO = 0.12;
 export const DEFAULT_COLOR_STEPS = 5;
 export const DEFAULT_NEUTRAL_STEPS = 5;
+
+export const RANDOM_BASE_COLORS = [
+  ...new Set([
+    ...Object.values(COLOR_FAMILY_CANDIDATES).flat().map(({ hex }) => hex),
+    ...Object.values(MOOD_CANDIDATES).flat().map(({ hex }) => hex),
+    ...Object.values(USE_CASE_CANDIDATES).flat().map(({ hex }) => hex),
+  ]),
+] as readonly string[];
+export const RANDOM_HARMONIES = HARMONY_MODES;
+export const RANDOM_HARMONY_TUNINGS = HARMONY_TUNINGS;
+export const RANDOM_NEUTRAL_MODES = NEUTRAL_MODES;
 
 export const PERCEPTUAL_HUE_SHIFTS = [-12, -8, -4, 0, 4, 8, 12] as const;
 export const PERCEPTUAL_REPRESENTATIVE_LIGHTNESS = 0.625;

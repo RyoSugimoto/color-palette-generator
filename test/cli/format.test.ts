@@ -20,9 +20,21 @@ describe("CLI formatting", () => {
   });
 
   it("formats HEX lists", () => {
-    expect(formatHexOutput(result)).toContain("Colors");
-    expect(formatHexOutput(result)).toContain("Neutrals");
-    expect(formatHexOutput(result)).not.toContain("\u001B[");
+    const output = formatHexOutput(result);
+    expect(output).toContain("Colors");
+    expect(output).toContain("Color 1");
+    expect(output).toContain("Color 2");
+    expect(output).toContain("Color 3");
+    expect(output).toContain("Neutrals");
+    expect(output).not.toContain("\u001B[");
+  });
+
+  it("labels terminal scales from light to dark", () => {
+    const output = formatHexOutput(result);
+    expect(output.indexOf(`100  ${result.colors[2]}`))
+      .toBeLessThan(output.indexOf(`900  ${result.colors[0]}`));
+    expect(output.indexOf(`100  ${result.neutrals[0]}`))
+      .toBeLessThan(output.indexOf(`900  ${result.neutrals[2]}`));
   });
 
   it("adds color swatches to HEX lists when color is enabled", () => {

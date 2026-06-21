@@ -1,19 +1,45 @@
-import { formatColorSwatch } from "./terminal-color.js";
-import type { PaletteResult } from "../core/types.js";
+import type {
+  HarmonyMode,
+  HarmonyTuning,
+  NeutralMode,
+  PaletteResult,
+} from "../core/types.js";
+import { formatHexOutput } from "./output.js";
+
+const HARMONY_LABELS: Readonly<Record<HarmonyMode, string>> = {
+  monochrome: "Monochrome",
+  analogous: "Analogous",
+  complementary: "Complementary",
+  triadic: "Triadic",
+};
+
+const HARMONY_TUNING_LABELS: Readonly<Record<HarmonyTuning, string>> = {
+  mechanical: "Fixed angles",
+  ui: "UI",
+  branding: "Branding",
+  "data-visualization": "Data visualization",
+};
+
+const NEUTRAL_LABELS: Readonly<Record<NeutralMode, string>> = {
+  neutral: "Neutral gray",
+  tinted: "Base-tinted gray",
+};
 
 export function formatPreview(result: PaletteResult, useColor: boolean): string {
+  const metadata = [
+    `Base color: ${result.config.baseColor}`,
+    `Harmony: ${HARMONY_LABELS[result.config.harmony]}`,
+    ...(result.config.harmony === "monochrome"
+      ? []
+      : [`Harmony style: ${HARMONY_TUNING_LABELS[result.config.harmonyTuning ?? "mechanical"]}`]),
+    `Neutrals: ${NEUTRAL_LABELS[result.config.neutralMode]}`,
+  ];
+
   return [
     "",
     "Palette preview",
-    `Base color: ${result.config.baseColor}`,
-    `Color harmony: ${result.config.harmony}`,
-    `Harmony tuning: ${result.config.harmonyTuning ?? "mechanical"}`,
-    `Neutral palette: ${result.config.neutralMode}`,
+    ...metadata,
     "",
-    "Colors",
-    ...result.colors.map((hex) => formatColorSwatch(hex, useColor)),
-    "",
-    "Neutrals",
-    ...result.neutrals.map((hex) => formatColorSwatch(hex, useColor)),
+    formatHexOutput(result, useColor),
   ].join("\n");
 }

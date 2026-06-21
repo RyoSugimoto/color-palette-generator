@@ -19,11 +19,23 @@ import type {
 } from "../core/types.js";
 
 export type BaseColorMethod = "hex" | "family" | "mood" | "use-case";
-export type ReviewAction = "continue" | "base" | "harmony" | "neutral";
-export type CssOutputChoice =
-  | { readonly mode: "skip" }
+export type StartupMode = "explore" | "configure";
+export type ExplorationAction = "accept" | "next" | "edit" | "quit";
+export type ConfigurationAction = "accept" | "export" | "edit";
+export type ConfigurationEditAction = "base" | "harmony" | "neutral" | "steps" | "cancel";
+export type ExportFormat = "json" | "css" | "back";
+export type ExportDestination =
+  | { readonly mode: "back" }
   | { readonly mode: "print" }
   | { readonly mode: "save"; readonly path: string };
+export type ExportCompleteAction = "done" | "another" | "back";
+
+export class PromptCancelledError extends Error {
+  constructor() {
+    super("Prompt cancelled.");
+    this.name = "PromptCancelledError";
+  }
+}
 
 export interface PromptInterface {
   question(prompt: string): Promise<string>;
@@ -32,6 +44,7 @@ export interface PromptInterface {
     options: readonly { readonly label: string; readonly value: Value }[],
     defaultValue?: Value,
   ): Promise<Value>;
+  readExplorationAction?(): Promise<ExplorationAction>;
   close(): void;
 }
 
@@ -52,18 +65,47 @@ export function createPromptInterface(): PromptInterface {
     prompt.choose = (question, options, defaultValue) => (
       selectWithCursor(question, options, defaultValue)
     );
+    prompt.readExplorationAction = readExplorationAction;
   }
   return prompt;
 }
 
-export async function promptBaseColor(rl: PromptInterface): Promise<string> {
+export function promptStartupMode(rl: PromptInterface): Promise<StartupMode> {
+  return select(rl, "How would you like to start?", [
+    { label: "Explore random palettes", value: "explore" },
+    { label: "Create a custom palette", value: "configure" },
+  ] as const, "explore");
+}
+
+export function promptExplorationAction(rl: PromptInterface): Promise<ExplorationAction> {
+  if (rl.readExplorationAction) {
+    console.log("\nEnter: accept   Space: next   e: edit   q: quit");
+    return rl.readExplorationAction();
+  }
+  return select(rl, "What would you like to do?", [
+    { label: "Accept this palette", value: "accept" },
+    { label: "Show the next palette", value: "next" },
+    { label: "Edit this palette", value: "edit" },
+    { label: "Quit", value: "quit" },
+  ] as const, "accept");
+}
+
+export async function promptBaseColor(
+  rl: PromptInterface,
+  currentValue?: string,
+): Promise<string> {
+  const currentOption = currentValue === undefined
+    ? []
+    : [{ label: `Keep current base color (${currentValue})`, value: "current" as const }];
   const method = await select(rl, "How would you like to choose the base color?", [
+    ...currentOption,
     { label: "Enter a HEX value", value: "hex" },
     { label: "Choose a color family", value: "family" },
     { label: "Choose a mood", value: "mood" },
     { label: "Choose a use case", value: "use-case" },
-  ] as const);
+  ] as const, currentValue === undefined ? undefined : "current");
 
+  if (method === "current") return currentValue as string;
   if (method === "hex") return promptHex(rl);
   if (method === "family") {
     const family = await selectKeys<ColorFamily>(rl, "Choose a color family:", COLOR_FAMILY_CANDIDATES);
@@ -77,37 +119,59 @@ export async function promptBaseColor(rl: PromptInterface): Promise<string> {
   return promptCandidate(rl, USE_CASE_CANDIDATES[useCase]);
 }
 
-export function promptHarmony(rl: PromptInterface): Promise<HarmonyMode> {
+export function promptHarmony(rl: PromptInterface, defaultValue?: HarmonyMode): Promise<HarmonyMode> {
   return select(rl, "Choose a color harmony:", [
-    { label: "Monochrome", value: "monochrome" },
-    { label: "Analogous", value: "analogous" },
-    { label: "Complementary", value: "complementary" },
-    { label: "Triadic", value: "triadic" },
-  ] as const);
+    { label: "Monochrome (1 hue + neutrals)", value: "monochrome" },
+    { label: "Analogous (3 neighboring hues + neutrals)", value: "analogous" },
+    { label: "Complementary (2 opposite hues + neutrals)", value: "complementary" },
+    { label: "Triadic (3 evenly spaced hues + neutrals)", value: "triadic" },
+  ] as const, defaultValue);
 }
 
-export function promptHarmonyTuning(rl: PromptInterface): Promise<HarmonyTuning> {
-  return select(rl, "Choose harmony tuning:", [
-    { label: "Mechanical (current behavior)", value: "mechanical" },
-    { label: "UI", value: "ui" },
-    { label: "Branding", value: "branding" },
-    { label: "Data visualization", value: "data-visualization" },
-  ] as const, "mechanical");
+export function promptHarmonyTuning(
+  rl: PromptInterface,
+  defaultValue: HarmonyTuning = "mechanical",
+): Promise<HarmonyTuning> {
+  return select(rl, "How should the harmony colors be adjusted?", [
+    { label: "Fixed angles (predictable)", value: "mechanical" },
+    { label: "UI (restrained accents)", value: "ui" },
+    { label: "Branding (vivid accents)", value: "branding" },
+    { label: "Data visualization (separated colors)", value: "data-visualization" },
+  ] as const, defaultValue);
 }
 
-export function promptNeutralMode(rl: PromptInterface): Promise<NeutralMode> {
+export function promptNeutralMode(rl: PromptInterface, defaultValue?: NeutralMode): Promise<NeutralMode> {
   return select(rl, "Choose a neutral palette:", [
     { label: "Neutral gray", value: "neutral" },
     { label: "Base-tinted gray", value: "tinted" },
+  ] as const, defaultValue);
+}
+
+export function promptConfigurationAction(rl: PromptInterface): Promise<ConfigurationAction> {
+  return select(rl, "Choose an action:", [
+    { label: "Finish and print HEX values", value: "accept" },
+    { label: "Export as JSON or CSS", value: "export" },
+    { label: "Change palette settings", value: "edit" },
+  ] as const, "accept");
+}
+
+export function promptConfigurationEditAction(
+  rl: PromptInterface,
+): Promise<ConfigurationEditAction> {
+  return select(rl, "What would you like to edit?", [
+    { label: "Base color", value: "base" },
+    { label: "Color harmony", value: "harmony" },
+    { label: "Neutral palette", value: "neutral" },
+    { label: "Step counts", value: "steps" },
+    { label: "Cancel editing", value: "cancel" },
   ] as const);
 }
 
-export function promptReviewAction(rl: PromptInterface): Promise<ReviewAction> {
-  return select(rl, "What would you like to do?", [
-    { label: "Continue", value: "continue" },
-    { label: "Choose the base color again", value: "base" },
-    { label: "Choose the color harmony again", value: "harmony" },
-    { label: "Choose the neutral palette again", value: "neutral" },
+export function promptExportFormat(rl: PromptInterface): Promise<ExportFormat> {
+  return select(rl, "Choose an export format:", [
+    { label: "JSON", value: "json" },
+    { label: "CSS", value: "css" },
+    { label: "Back to palette", value: "back" },
   ] as const);
 }
 
@@ -120,25 +184,32 @@ export function promptStepCount(rl: PromptInterface, label: string, defaultValue
   ] as const, defaultValue);
 }
 
-export async function promptOutputPath(rl: PromptInterface): Promise<string | undefined> {
-  const answer = (await rl.question("JSON output path (leave blank to print to the terminal): ")).trim();
-  return answer || undefined;
-}
-
-export async function promptCssOutput(rl: PromptInterface): Promise<CssOutputChoice> {
-  const mode = await select(rl, "Choose CSS output:", [
-    { label: "Skip CSS output", value: "skip" },
-    { label: "Print CSS", value: "print" },
-    { label: "Save CSS to a file", value: "save" },
-  ] as const, "skip");
+export async function promptExportDestination(
+  rl: PromptInterface,
+  format: Exclude<ExportFormat, "back">,
+): Promise<ExportDestination> {
+  const label = format.toUpperCase();
+  const mode = await select(rl, `Where should the ${label} output go?`, [
+    { label: "Print to the terminal", value: "print" },
+    { label: "Save to a file", value: "save" },
+    { label: "Back to format selection", value: "back" },
+  ] as const, "print");
 
   if (mode !== "save") return { mode };
 
   while (true) {
-    const path = (await rl.question("CSS output path: ")).trim();
+    const path = (await rl.question(`${label} output path: `)).trim();
     if (path) return { mode, path };
-    console.log("Enter a path for the CSS output file.");
+    console.log(`Enter a path for the ${label} output file.`);
   }
+}
+
+export function promptExportCompleteAction(rl: PromptInterface): Promise<ExportCompleteAction> {
+  return select(rl, "Export complete. What would you like to do?", [
+    { label: "Done", value: "done" },
+    { label: "Export another format", value: "another" },
+    { label: "Back to palette", value: "back" },
+  ] as const, "done");
 }
 
 async function promptHex(rl: PromptInterface): Promise<string> {
@@ -214,7 +285,7 @@ async function selectWithCursor<Value>(
       const onKeypress = (_input: string, key: { name?: string; ctrl?: boolean }): void => {
         if (key.ctrl && key.name === "c") {
           stdin.off("keypress", onKeypress);
-          reject(new Error("Prompt cancelled."));
+          reject(new PromptCancelledError());
           return;
         }
         if (key.name === "up" || key.name === "down") {
@@ -234,6 +305,46 @@ async function selectWithCursor<Value>(
   } finally {
     stdin.setRawMode(Boolean(wasRaw));
   }
+}
+
+async function readExplorationAction(): Promise<ExplorationAction> {
+  emitKeypressEvents(stdin);
+  const wasRaw = stdin.isRaw;
+  stdin.setRawMode(true);
+  stdin.resume();
+
+  try {
+    return await new Promise<ExplorationAction>((resolve, reject) => {
+      const onKeypress = (input: string, key: { name?: string; ctrl?: boolean }): void => {
+        if (key.ctrl && key.name === "c") {
+          stdin.off("keypress", onKeypress);
+          reject(new PromptCancelledError());
+          return;
+        }
+
+        const action = explorationActionForKey(input, key.name);
+        if (action) {
+          stdin.off("keypress", onKeypress);
+          stdout.write("\n");
+          resolve(action);
+        }
+      };
+      stdin.on("keypress", onKeypress);
+    });
+  } finally {
+    stdin.setRawMode(Boolean(wasRaw));
+  }
+}
+
+export function explorationActionForKey(
+  input: string,
+  keyName?: string,
+): ExplorationAction | undefined {
+  if (keyName === "return" || keyName === "enter") return "accept";
+  if (keyName === "space" || input === " ") return "next";
+  if (input.toLowerCase() === "e") return "edit";
+  if (input.toLowerCase() === "q") return "quit";
+  return undefined;
 }
 
 function renderCursorOptions<Value>(

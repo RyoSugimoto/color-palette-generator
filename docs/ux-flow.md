@@ -1,86 +1,122 @@
 # CLI UX Flow
 
-This document describes the user journey implemented by `src/cli/index.ts` and the modules involved at each stage.
+This document describes the implemented interactive and non-interactive journeys.
 
-## End-to-end flow
+## Startup and exploration
+
+Running the CLI without a command opens a two-item menu with exploration selected:
+
+```text
+> Explore random palettes
+  Create a custom palette
+```
 
 ```mermaid
 flowchart TD
-  Start[Start CLI] --> BaseMethod[Choose how to select a base color]
-  BaseMethod --> Hex[Enter HEX]
-  BaseMethod --> Family[Choose color family and candidate]
-  BaseMethod --> Mood[Choose mood and candidate]
-  BaseMethod --> UseCase[Choose use case and candidate]
-
-  Hex --> Harmony[Choose color harmony]
-  Family --> Harmony
-  Mood --> Harmony
-  UseCase --> Harmony
-
-  Harmony --> Tuning[Choose harmony tuning<br/>Mechanical by default]
-  Tuning --> Neutral[Choose neutral palette]
-  Neutral --> Initial[Generate initial palette with 5 color and 5 neutral steps]
-  Initial --> Preview[Show terminal preview]
-  Preview --> Review{Review action}
-
-  Review -->|Choose base again| BaseMethod
-  Review -->|Choose harmony again| Harmony
-  Review -->|Choose neutrals again| Neutral
-  Review -->|Continue| ColorSteps[Choose color lightness steps]
-
-  ColorSteps --> NeutralSteps[Choose neutral lightness steps]
-  NeutralSteps --> Final[Generate final palette]
-  Final --> HexOutput[Print color and neutral HEX lists]
-  HexOutput --> JsonPath{JSON output path?}
-  JsonPath -->|Blank| PrintJson[Print JSON]
-  JsonPath -->|Provided| SaveJson[Save JSON file]
-  PrintJson --> CssOutput{CSS output?}
-  SaveJson --> CssOutput
-  CssOutput -->|Skip, default| End[Finish]
-  CssOutput -->|Print| PrintCss[Print CSS]
-  CssOutput -->|Save| CssPath[Require CSS output path]
-  PrintCss --> End
-  CssPath --> SaveCss[Save CSS file]
-  SaveCss --> End
+  Start[Start CLI] --> Mode{Startup mode}
+  Mode -->|Explore, default| Candidate[Generate seeded random config]
+  Candidate --> Preview[Show preview, metadata, and seed]
+  Preview --> Action{Exploration action}
+  Action -->|Space: next| Next[Advance seed until generated colors change]
+  Next --> Candidate
+  Action -->|Enter: accept| Hex[Print concise HEX]
+  Action -->|e: edit| Field[Open field picker with current values]
+  Field --> Configure[Edit selected field]
+  Action -->|q: quit| End[Finish without accepted output]
+  Mode -->|Configure| Fresh[Prompt for initial configuration]
+  Fresh --> Configure
 ```
 
-## Selection behavior
+Random exploration changes the curated base color, harmony, harmony adjustment, and neutral mode. Color and neutral step counts remain fixed at five. The displayed eight-digit seed reproduces the candidate through `generate --seed` within the same Quick Palette version; generated JSON output should be retained when exact colors are required across versions.
 
-In a TTY, `src/cli/prompt.ts` renders a cursor beside the active option. Up and Down wrap around the available choices, and Enter returns the selected value. Harmony tuning starts on Mechanical, preserving the fixed-angle behavior. Step prompts start on their configured default, which is 5 for both colors and neutrals.
+TTY exploration reads a single key and restores raw mode after success, cancellation, or error. Non-TTY input uses a numbered `Accept / Next / Edit / Quit` menu and never waits for raw key events.
 
-When standard input or output is not a TTY, selection falls back to numbered input. Invalid numbers are rejected and prompted again. Direct HEX input accepts `#RGB` and `#RRGGBB`; invalid values are also prompted again.
+## Detailed configuration
 
-## Preview and revision loop
+Fresh configuration asks for base color, harmony, harmony adjustment, and neutral mode. The adjustment question is skipped for monochrome palettes because it has no visual effect. Editing an exploration candidate opens the field picker immediately and preserves its current values.
 
-The first preview is generated only after the base color, harmony tuning, and neutral style are known. `src/core/generate.ts` creates the palette, while `src/cli/preview.ts` formats it. The preview names the selected tuning. True Color blocks are shown only when the output is a TTY and `NO_COLOR` is not set.
+```mermaid
+flowchart TD
+  Config[Current config] --> Preview[Generate and show preview]
+  Preview --> Final{Finish / Export / Change settings}
+  Final -->|Finish and print HEX| Hex[Print HEX and finish]
+  Final -->|Export as JSON or CSS| Format{JSON or CSS}
+  Format --> Destination{Print / Save / Back}
+  Destination -->|Print or save| Exported{Done / Export another / Back}
+  Destination -->|Back| Format
+  Exported -->|Done| End[Finish]
+  Exported -->|Export another| Format
+  Exported -->|Back| Final
+  Final -->|Change palette settings| Field{Field to edit}
+  Field --> Base[Base color]
+  Field --> Harmony[Harmony and adjustment]
+  Field --> Neutral[Neutral mode]
+  Field --> Steps[Color and neutral steps]
+  Base --> Preview
+  Harmony --> Preview
+  Neutral --> Preview
+  Steps --> Preview
+```
 
-The review menu changes one decision at a time:
+Finish and print HEX values uses the current result immediately. The normal path keeps both step counts at five and asks no step-count or output questions. Export as JSON or CSS uses the same Print, Save, and Back choices for both formats, then offers Done, Export another format, or Back to palette without reprinting the preview. Change palette settings preselects current values and changes only the selected field group.
 
-- Changing the base color returns to the base selection method.
-- Changing harmony preserves the base color and neutral style, then asks for harmony tuning again.
-- Changing neutrals preserves the base color and harmony.
-- Continuing moves to the final lightness-step choices.
+## Non-interactive commands
 
-After any revision, the initial palette is regenerated and previewed again.
+```mermaid
+flowchart LR
+  Args[CLI arguments] --> Parse[Validate command and options]
+  Parse -->|explore| Explore[Interactive exploration, optional seed]
+  Parse -->|configure| Configure[Interactive detailed flow]
+  Parse -->|generate| Resolve[Resolve defaults or seeded config]
+  Resolve --> Generate[Generate palette]
+  Generate --> Format[HEX, JSON, or CSS]
+  Format -->|No output path| Stdout[stdout only]
+  Format -->|Output path| File[File only]
+  Parse -->|invalid| Stderr[stderr and exit 1]
+```
 
-## Final generation and output
+`generate` creates no readline interface and prints no headings or prompts beyond the requested format. With no seed, omitted fields use `#2563EB`, analogous harmony, mechanical tuning, neutral gray, and five steps. With a seed, omitted configurable fields come from the deterministic random configuration; explicit flags pin their fields.
 
-The selected color step count applies to every hue in the harmony. For example, analogous harmony has three hues, so 5 steps produce 15 color swatches. Neutral steps always describe the total number of neutral swatches.
+## Selection and terminal behavior
 
-`src/cli/output.ts` prints the final HEX lists with the same TTY True Color swatches used by the initial preview. It then either prints formatted JSON or writes it to the path entered by the user. After JSON, CSS custom property output can be skipped (the default), printed, or saved to a required path. CSS shade labels always run from the lightest `100` to the darkest `900`, and each harmony hue receives a numbered color group. Errors propagate to the CLI entry point, which prints a failure message and sets a non-zero exit code.
+- TTY menus use Up and Down with wraparound and Enter to select.
+- Exploration uses Enter, Space, `e`, and `q` as direct actions.
+- Ctrl+C prints `Cancelled.`, exits with status 130, and restores raw terminal mode.
+- Terminal palettes use separate harmony groups and `100` through `900` labels in light-to-dark order.
+- Non-TTY menus use numbered input and reject invalid selections.
+- True Color swatches appear only for TTY stdout when `NO_COLOR` is unset.
+- Machine-readable generation writes content to stdout or a selected file, and errors to stderr.
+
+## Interaction counts
+
+The implemented paths were checked through automated process tests and timed non-TTY internal trials on 2026-06-21 using Node.js 26.3.0. Counts exclude typing the launch command; timings are local smoke measurements, not performance targets.
+
+| Journey | First preview | Accept and finish | Internal wall time |
+| --- | ---: | ---: | ---: |
+| No arguments, default exploration | 1 selection | 2 key actions total | 0.11 s |
+| `explore` command | 0 selections | 1 key action total | Not timed |
+| `explore --seed 8f3a21c4` | 0 selections | 1 key action total | 0.12 s |
+| `generate --seed 8f3a21c4` | No preview step | 0 interactive actions | 0.10 s |
+
+Moving between exploration candidates requires one Space key. Accepting requires one Enter key and opens no additional prompts. These counts meet the primary interaction criteria. External first-time-user usability sessions have not yet been conducted.
 
 ## Module responsibilities
 
 ```mermaid
 flowchart LR
-  Index[index.ts<br/>Flow control] --> Prompt[prompt.ts<br/>Input and selection]
-  Index --> Generate[core/generate.ts<br/>Palette generation]
-  Index --> Preview[preview.ts<br/>Terminal preview]
-  Index --> Output[output.ts<br/>HEX, JSON, and CSS output]
-  Prompt --> Color[core/color.ts<br/>HEX normalization]
-  Generate --> Color
-  Generate --> Constants[core/constants.ts<br/>Fixed rules and defaults]
-  Generate --> Tuner[core/perceptual-harmony.ts<br/>Bounded hue tuning]
-  Tuner --> Color
-  Tuner --> Constants
+  Index[index.ts<br/>Command dispatch and error boundary]
+  Index --> Args[args.ts<br/>Argument parsing and help]
+  Index --> Explore[explore.ts<br/>Exploration state loop]
+  Index --> Configure[configure.ts<br/>Detailed flow]
+  Index --> Command[generate-command.ts<br/>Non-interactive generation]
+  Explore --> Random[core/random.ts<br/>Seeded random config]
+  Explore --> Generate[core/generate.ts<br/>Palette generation]
+  Configure --> Generate
+  Command --> Random
+  Command --> Generate
+  Explore --> Prompt[prompt.ts<br/>TTY and numbered input]
+  Configure --> Prompt
+  Explore --> Output[output.ts and preview.ts<br/>Formatting]
+  Configure --> Output
+  Command --> Output
 ```
