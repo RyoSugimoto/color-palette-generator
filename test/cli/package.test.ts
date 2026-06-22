@@ -41,7 +41,7 @@ describe("packed CLI", () => {
       ["add", "--offline", tarball],
       { cwd: temporaryDirectory, encoding: "utf8", timeout: 30_000 },
     );
-    expect(install.status, install.stderr).toBe(0);
+    expect(install.status, `${install.stdout}\n${install.stderr}`).toBe(0);
 
     const installedPackage = join(temporaryDirectory, "node_modules", ...manifest.name.split("/"));
     const [binName, binPath] = Object.entries(manifest.bin)[0] ?? [];

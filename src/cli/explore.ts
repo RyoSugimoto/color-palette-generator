@@ -1,4 +1,5 @@
 import { generatePalette } from "../core/generate.js";
+import { candidateFromRandom, nextPaletteCandidateWith } from "../core/explore.js";
 import { generateRandomPaletteConfig } from "../core/random.js";
 import type {
   PaletteConfig,
@@ -14,8 +15,6 @@ import {
   type PromptInterface,
 } from "./prompt.js";
 import { formatPreview } from "./preview.js";
-
-const MAX_NEXT_ATTEMPTS = 1024;
 
 export interface ExplorationCandidate extends RandomPaletteConfigResult {
   readonly result: PaletteResult;
@@ -68,7 +67,7 @@ function createCandidate(
   random: RandomPaletteConfigResult,
   generate: (config: PaletteConfig) => PaletteResult,
 ): ExplorationCandidate {
-  return { ...random, result: generate(random.config) };
+  return candidateFromRandom(random, generate);
 }
 
 function nextCandidate(
@@ -76,19 +75,5 @@ function nextCandidate(
   randomConfig: (options?: RandomPaletteConfigOptions) => RandomPaletteConfigResult,
   generate: (config: PaletteConfig) => PaletteResult,
 ): ExplorationCandidate {
-  const currentSeed = Number.parseInt(current.seed, 16);
-  for (let offset = 1; offset <= MAX_NEXT_ATTEMPTS; offset += 1) {
-    const seed = (currentSeed + offset) >>> 0;
-    const next = createCandidate(randomConfig({ seed }), generate);
-    if (!samePalette(current.result, next.result)) return next;
-  }
-  throw new Error("Unable to generate a visually different palette.");
-}
-
-function samePalette(left: PaletteResult, right: PaletteResult): boolean {
-  return sameColors(left.colors, right.colors) && sameColors(left.neutrals, right.neutrals);
-}
-
-function sameColors(left: readonly string[], right: readonly string[]): boolean {
-  return left.length === right.length && left.every((color, index) => color === right[index]);
+  return nextPaletteCandidateWith(current, randomConfig, generate);
 }

@@ -1,6 +1,9 @@
 import { writeFile } from "node:fs/promises";
+import { formatCssOutput, formatJsonOutput, STEP_LABELS } from "../core/format.js";
 import type { PaletteResult } from "../core/types.js";
 import { formatColorSwatch } from "./terminal-color.js";
+
+export { formatCssOutput, formatJsonOutput } from "../core/format.js";
 
 export function formatHexOutput(result: PaletteResult, useColor = false): string {
   const colorLabels = STEP_LABELS[result.config.colorSteps];
@@ -24,17 +27,6 @@ export function formatHexOutput(result: PaletteResult, useColor = false): string
   ].join("\n");
 }
 
-export function formatJsonOutput(result: PaletteResult): string {
-  return JSON.stringify(result, null, 2);
-}
-
-const STEP_LABELS = {
-  3: [100, 500, 900],
-  5: [100, 300, 500, 700, 900],
-  7: [100, 200, 300, 500, 700, 800, 900],
-  9: [100, 200, 300, 400, 500, 600, 700, 800, 900],
-} as const;
-
 function formatScale(
   colors: readonly string[],
   labels: readonly number[],
@@ -43,29 +35,6 @@ function formatScale(
   return colors.map((hex, index) => (
     `  ${String(labels[index]).padStart(3)}  ${formatColorSwatch(hex, useColor).trimStart()}`
   ));
-}
-
-export function formatCssOutput(result: PaletteResult): string {
-  const colorLabels = STEP_LABELS[result.config.colorSteps];
-  const neutralLabels = STEP_LABELS[result.config.neutralSteps];
-  const colorGroups: string[][] = [];
-
-  for (let start = 0; start < result.colors.length; start += result.config.colorSteps) {
-    const colors = [...result.colors.slice(start, start + result.config.colorSteps)].reverse();
-    const groupNumber = colorGroups.length + 1;
-    colorGroups.push(colors.map((hex, index) => (
-      `  --palette-color-${groupNumber}-${colorLabels[index]}: ${hex};`
-    )));
-  }
-
-  const neutrals = result.neutrals.map((hex, index) => (
-    `  --palette-neutral-${neutralLabels[index]}: ${hex};`
-  ));
-  const declarations = [...colorGroups, neutrals]
-    .map((group) => group.join("\n"))
-    .join("\n\n");
-
-  return `:root {\n${declarations}\n}\n`;
 }
 
 export async function writeJsonOutput(result: PaletteResult, outputPath?: string): Promise<void> {

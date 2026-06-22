@@ -36,6 +36,9 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
+    "web:build": "pnpm --filter @quick-palette/web build",
+    "web:dev": "pnpm --filter @quick-palette/web dev",
+    "web:typecheck": "pnpm --filter @quick-palette/web typecheck",
     "prepack": "pnpm build",
     "prepublishOnly": "pnpm test --exclude test/cli/package.test.ts && pnpm typecheck",
     "start": "tsx src/cli/index.ts",
